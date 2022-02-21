@@ -1,0 +1,122 @@
+---
+title: "Project 456_1"
+author: "Minh Le"
+date: "2/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(caret)
+```
+## Data description
+
+Load dataset
+
+```{r}
+stock <- stock <- read.csv("stock_return.csv", sep = "", dec = ".")
+head(stock)
+str(stock)
+```
+
+The predictor for our simple linear regression model will be Date and the response variable will be SP_500.
+
+We will visualize the relationship among date and SP_500
+
+
+
+Firstly, the Date is "chr" data type so we will change it to "Date" data type.
+
+```{r}
+stock$Date <- as.Date(stock$Date, format = "%m/%d/%Y")
+
+ggplot(stock, aes(Date, SP_500)) + geom_point()
+
+```
+
+Now we will find the difference between months, setting the first date as the beginning of our timeline, get elapsed time as our x - axis.
+
+```{r}
+begin <- stock$Date[1]
+
+stock$diff_month <- sapply(stock$Date, FUN = function(x){interval(begin,x)/months(1)})
+
+ggplot(stock, aes(diff_month, SP_500)) + geom_point() + stat_smooth()
+
+```
+
+## Analysis
+
+Now, we will clean our data by checking if there are missing values in both predictors and responses.
+```{r}
+summary(stock$SP_500)
+which(is.na(stock$SP_500))
+
+sum(is.na(stock$diff_month))
+```
+
+Hence, there is only one missing value in our response SP_500 which is from the first observation
+
+Next, we will divide our dataset to build model and predictions into 75% for training and 25% for testing. First, we will exclude the missing observation and bring it to our testing set.
+
+```{r}
+set.seed(1)
+inTrain <- createDataPartition(y = stock[-1, ]$SP_500, p = 0.75, list = FALSE)
+
+training <- stock[inTrain, ]
+
+testing <- stock[-inTrain,]
+
+```
+
+## Model evaluation
+
+Now we will use linear regression for our training set to build our model for prediction
+
+```{r}
+train.fit <- lm(SP_500 ~ diff_month, data = training)
+summary(train.fit)
+plot(stock$diff_month, stock$SP_500)
+abline(train.fit)
+summary(train.fit)
+par(mfrow=c(2,2))
+plot(train.fit)
+par(mfrow=c(1,1))
+```
+
+From our summary fitting model, the coefficient is significant since both values have p-value much less than 0.05. 
+The residual standard error is 79.73,
+R-Squared is 0.9369, meaning that our model fits the training set.
+Also, its F-statistic is 653.6, indicating that we can accept that our model fits the data better than the model with no independent variables 
+The residuals follow are fairly normal distributed.
+Here, since no point falls outside of Cook's distance (the red dashed lines) then no point is considered to be influential observation. 
+
+Now we will use this model to predict the testing set. 
+```{r}
+fit.test <- predict(train.fit, testing)
+
+plot(testing$SP_500, fit.test)
+
+```
+
+
+Here is the actual response SP_500 vs the fitted value SP_500
+
+```{r}
+
+{plot(testing$diff_month,testing$SP_500)
+abline(train.fit)
+}
+
+```
+
+## Reference
+
+Link to the dataset [Link](https://regressit.com/Stock_returns_with_analysis.xlsx) 
